@@ -39,20 +39,20 @@ assert blas.implementation == "openblas" && lapack.implementation == "openblas";
 assert enablePython -> pythonPackages != null;
 
 let
-  version = "3.4.8";
+  version = "3.4.14";
 
   src = fetchFromGitHub {
     owner  = "opencv";
     repo   = "opencv";
     rev    = version;
-    sha256 = "1dnz3gfj70lm1gbrk8pz28apinlqi2x6nvd6xcy5hs08505nqnjp";
+    hash   = "sha256-BDDlDr/6pQWHUvDHcKTvf8NB0b8hmJRSj1nSLfz6Yys=";
   };
 
   contribSrc = fetchFromGitHub {
     owner  = "opencv";
     repo   = "opencv_contrib";
     rev    = version;
-    sha256 = "0psaa1yx36n34l09zd1y8jxgf8q4jzxd3vn06fqmzwzy85hcqn8i";
+    hash = "sha256-phKBDLiU68YbKHPfog3FujeUFqK5cnt8y57wVZjtuIY=";
   };
 
   # Contrib must be built in order to enable Tesseract support:
@@ -228,7 +228,6 @@ stdenv.mkDerivation {
     (opencvFlag "WEBP" enableWebP)
     (opencvFlag "JPEG" enableJPEG)
     (opencvFlag "PNG" enablePNG)
-    (opencvFlag "OPENEXR" enableEXR)
     (opencvFlag "CUDA" enableCuda)
     (opencvFlag "CUBLAS" enableCuda)
     (opencvFlag "TBB" enableTbb)
@@ -238,6 +237,7 @@ stdenv.mkDerivation {
     "-DCUDA_NVCC_FLAGS=--expt-relaxed-constexpr"
   ] ++ lib.optionals stdenv.isDarwin [
     "-DWITH_OPENCL=OFF"
+    "-DWITH_OPENEXR=OFF"
     "-DWITH_LAPACK=OFF"
     "-DBUILD_opencv_videoio=OFF"
   ] ++ lib.optionals enablePython [
