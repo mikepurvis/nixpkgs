@@ -130,6 +130,13 @@ stdenv.mkDerivation (finalAttrs: {
     hash = sourceSha256;
   };
 
+  # Keeps headers, CMake files and the propagated dependencies (and their own
+  # dev outputs) out of the runtime closure of everything linking vtk.
+  outputs = [
+    "out"
+    "dev"
+  ];
+
   nativeBuildInputs = [
     cmake
     pkg-config # required for finding MySQl
@@ -290,13 +297,28 @@ stdenv.mkDerivation (finalAttrs: {
 
   pythonImportsCheck = [ "vtk" ];
 
+  # VTK refuses an absolute install destination for its CMake files, so the
+  # dev output is split after install. vtk-prefix.cmake then resolves its
+  # prefix to dev, which is right for headers and the module hierarchy files
+  # (build-time metadata for wrapping), provided the latter move there too.
+  postInstall = ''
+    moveToOutput lib/vtk "''${!outputDev}"
+  '';
+
   dontWrapQtApps = true;
 
   postFixup =
     # Remove thirdparty find module that have been provided in nixpkgs.
     ''
-      rm -rf $out/lib/cmake/vtk/patches
-      rm $out/lib/cmake/vtk/Find{EXPAT,Freetype,utf8cpp,LibXml2,FontConfig,TBB}.cmake
+      rm -rf $dev/lib/cmake/vtk/patches
+      rm $dev/lib/cmake/vtk/Find{EXPAT,Freetype,utf8cpp,LibXml2,FontConfig,TBB}.cmake
+    ''
+    # The exported targets locate libraries and tools relative to their own
+    # location, which is now in dev.
+    + ''
+      substituteInPlace $dev/lib/cmake/vtk/*-targets-*.cmake \
+        --replace-quiet "\''${_IMPORT_PREFIX}/lib/" "$out/lib/" \
+        --replace-quiet "\''${_IMPORT_PREFIX}/bin/" "$out/bin/"
     ''
     # libvtkglad.so will find and load libGL.so at runtime.
     + lib.optionalString stdenv.hostPlatform.isLinux ''
