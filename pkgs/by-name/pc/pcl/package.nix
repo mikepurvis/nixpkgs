@@ -43,6 +43,13 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-+KyaajJM0I5CAcr8AiOLC4TkGV3Gm73a0/X8LQWFZMI=";
   };
 
+  # Keeps headers, PCLConfig.cmake and the propagated dependencies (and their
+  # own dev outputs, vtk's in particular) out of the runtime closure.
+  outputs = [
+    "out"
+    "dev"
+  ];
+
   patches = [
     (fetchpatch {
       # see https://github.com/NixOS/nixpkgs/issues/485826 to be removed at next release after 1.15.1
@@ -85,6 +92,22 @@ stdenv.mkDerivation (finalAttrs: {
     qhull
     vtk
   ];
+
+  # PCLConfig.cmake is installed to share/pcl-<version> rather than lib/cmake,
+  # so it isn't moved to dev by default. It finds its prefix two levels up,
+  # which is then dev: right for headers, so only the libraries need pointing
+  # back at out.
+  postInstall = ''
+    moveToOutput "share/pcl-*" "''${!outputDev}"
+  '';
+
+  postFixup = ''
+    substituteInPlace "$dev"/share/pcl-*/PCLConfig.cmake \
+      --replace-fail 'set(PCL_LIBRARY_DIRS "''${PCL_ROOT}/lib")' "set(PCL_LIBRARY_DIRS \"$out/lib\")"
+    # The pkg-config files write includedir from prefix, which is out.
+    substituteInPlace "$dev"/lib/pkgconfig/*.pc \
+      --replace-fail 'includedir=''${prefix}/include' "includedir=$dev/include"
+  '';
 
   cmakeFlags = [
     (lib.cmakeBool "BUILD_CUDA" cudaSupport)
